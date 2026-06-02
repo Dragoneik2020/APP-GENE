@@ -59,6 +59,31 @@ db.exec(`
     FOREIGN KEY (custom_workout_id) REFERENCES custom_workouts(id)
   );
 
+  CREATE TABLE IF NOT EXISTS workout_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    challenge_id INTEGER,
+    exercise_name TEXT NOT NULL,
+    sets INTEGER,
+    reps INTEGER,
+    weight REAL,
+    notes TEXT,
+    completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (challenge_id) REFERENCES daily_challenges(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS user_progress (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    date DATE NOT NULL,
+    weight REAL,
+    body_fat REAL,
+    muscle_mass REAL,
+    notes TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
   CREATE TABLE IF NOT EXISTS exercise_library (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
