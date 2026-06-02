@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'https://fitgenius.rincon-z.com/api';
 
 class ApiService {
   private token: string | null = null;
