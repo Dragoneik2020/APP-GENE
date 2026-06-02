@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Metro
+.metro-health-check*
+
+# Backend
+backend/*.db
+backend/node_modules/
+backend/.env
+
+# Environment
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
