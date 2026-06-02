@@ -51,6 +51,11 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.get('/api/admin/users', auth, (req, res) => {
+  const users = db.prepare('SELECT id, email, name, fitness_level FROM users').all();
+  res.json(users);
+});
+
 app.get('/api/user/profile', auth, (req, res) => {
   const user = db.prepare('SELECT id, email, name, age, weight, height, fitness_level, goals FROM users WHERE id = ?').get(req.userId);
   res.json(user);
