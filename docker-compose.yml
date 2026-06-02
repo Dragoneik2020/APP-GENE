@@ -21,6 +21,8 @@ services:
     restart: unless-stopped
     environment:
       - EXPO_PUBLIC_API_URL=https://api.fitgenius.rincon-z.com
+    depends_on:
+      - backend
 
 volumes:
   backend-data:
