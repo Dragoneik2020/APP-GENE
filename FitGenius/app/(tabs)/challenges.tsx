@@ -283,9 +283,19 @@ export default function ChallengesScreen() {
             <TouchableOpacity
               key={challenge.id}
               style={styles.challengeCard}
-              onPress={() => !challenge.completed && completeChallenge(challenge.id)}
+              onPress={() => {
+                if (challenge.workout_plan_id) {
+                  router.push({
+                    pathname: '/(tabs)/plan',
+                    params: { planId: challenge.workout_plan_id }
+                  });
+                } else if (challenge.custom_workout_id) {
+                  router.push('/(tabs)/workout');
+                }
+              }}
               onLongPress={() => deleteChallenge(challenge.id)}
             >
+
               <View style={styles.challengeInfo}>
                 <Text style={styles.challengeName}>
                   {challenge.plan_name || challenge.custom_name || 'Entrenamiento'}

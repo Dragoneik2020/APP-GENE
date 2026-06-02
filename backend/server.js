@@ -153,10 +153,30 @@ Responde SOLO con un JSON válido con esta estructura:
     }
 
     const result = db.prepare('INSERT INTO workout_plans (user_id, name, description, plan_data, is_ai_generated) VALUES (?, ?, ?, ?, ?)')
-      .run(req.userId, planData.plan_name || 'Plan FitGenius', planData.description || '', JSON.stringify(planData), (GROQ_API_KEY && GROQ_API_KEY !== 'gsk_tu_api_key_de_groq' ? 1 : 0));
+      .run(req.userId, planData.plan_name || 'Plan FitGenius', planData.description || '', JSON.stringify(planData), (GROQ_API_KEY && GROQ_API_KEY !== 'gsk_tu_api_key_de_// la key es la misma' ? 1 : 0));
 
-    res.json({ id: result.lastInsertRowid, ...planData });
+    const planId = result.lastInsertRowid;
+
+    // Generar desafíos diarios automáticamente para las 4 semanas
+    const scheduleChallenge = db.prepare('INSERT INTO daily_challenges (user_id, workout_plan_id, challenge_date, scheduled_time) VALUES (?, ?, ?, ?)');
+    const insertChallenges = db.transaction((plan) => {
+      const today = new Date();
+      plan.weeks.forEach((week, weekIdx) => {
+        week.days.forEach((day, dayIdx) => {
+          const challengeDate = new Date(today);
+          challengeDate.setDate(today.getDate() + (weekIdx * 7) + dayIdx);
+          
+          // Programar a las 8:00 AM por defecto si no hay horario
+          scheduleChallenge.run(req.userId, planId, challengeDate.toISOString().split('T')[0], '08:00');
+        });
+      });
+    });
+
+    insertChallenges(planData);
+
+    res.json({ id: planId, ...planData });
   } catch (err) {
+
     console.error('Global error in generate-plan:', err);
     res.status(500).json({ error: 'Error interno al generar el plan: ' + err.message });
   }

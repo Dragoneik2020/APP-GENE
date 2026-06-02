@@ -26,7 +26,21 @@ export default function PlanScreen() {
 
   useEffect(() => {
     loadPlans();
+    
+    const planId = router.query.planId;
+    if (planId) {
+      loadPlanDetails(parseInt(planId as string));
+    }
   }, []);
+
+  const loadPlanDetails = async (id: number) => {
+    try {
+      const plan = await api.getPlan(id);
+      setSelectedPlan(plan);
+    } catch (error) {
+      console.error('Error loading plan details:', error);
+    }
+  };
 
   const loadPlans = async () => {
     try {
