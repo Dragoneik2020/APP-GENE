@@ -13,6 +13,15 @@ services:
       - JWT_SECRET=${JWT_SECRET:-fitgenius_secret_change_in_production}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
 
+  frontend:
+    build:
+      context: ./FitGenius
+      dockerfile: Dockerfile
+    container_name: fitgenius-web
+    restart: unless-stopped
+    environment:
+      - EXPO_PUBLIC_API_URL=https://api.fitgenius.rincon-z.com
+
 volumes:
   backend-data:
     driver: local
