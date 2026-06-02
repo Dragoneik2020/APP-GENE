@@ -118,38 +118,47 @@ Responde SOLO con un JSON válido con esta estructura:
   ]
 }`;
 
-    if (GROQ_API_KEY) {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
-          max_tokens: 4000
-        })
-      });
-      
-      const data = await response.json();
-      const planText = data.choices[0].message.content;
-      const planData = JSON.parse(planText.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    let planData;
+    if (GROQ_API_KEY && GROQ_API_KEY !== 'gsk_tu_api_key_de_groq') {
+      try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.7,
+            max_tokens: 4000
+          })
+        });
 
-      const result = db.prepare('INSERT INTO workout_plans (user_id, name, description, plan_data, is_ai_generated) VALUES (?, ?, ?, ?, 1)')
-        .run(req.userId, planData.plan_name || 'Plan IA', planData.description || '', JSON.stringify(planData));
+        if (!response.ok) {
+          throw new Error(`Groq API responded with ${response.status}`);
+        }
 
-      res.json({ id: result.lastInsertRowid, ...planData });
+        const data = await response.json();
+        const planText = data.choices[0].message.content;
+        const match = planText.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error('No JSON found in AI response');
+        planData = JSON.parse(match[0]);
+      } catch (aiError) {
+        console.error('AI Generation failed, using fallback:', aiError.message);
+        planData = generateFallbackPlan(user, goals, days_per_week, session_duration, equipment);
+      }
     } else {
-      const fallbackPlan = generateFallbackPlan(user, goals, days_per_week, session_duration, equipment);
-      const result = db.prepare('INSERT INTO workout_plans (user_id, name, description, plan_data, is_ai_generated) VALUES (?, ?, ?, ?, 0)')
-        .run(req.userId, fallbackPlan.plan_name, fallbackPlan.description, JSON.stringify(fallbackPlan));
-      
-      res.json({ id: result.lastInsertRowid, ...fallbackPlan });
+      planData = generateFallbackPlan(user, goals, days_per_week, session_duration, equipment);
     }
+
+    const result = db.prepare('INSERT INTO workout_plans (user_id, name, description, plan_data, is_ai_generated) VALUES (?, ?, ?, ?, ?)')
+      .run(req.userId, planData.plan_name || 'Plan FitGenius', planData.description || '', JSON.stringify(planData), (GROQ_API_KEY && GROQ_API_KEY !== 'gsk_tu_api_key_de_groq' ? 1 : 0));
+
+    res.json({ id: result.lastInsertRowid, ...planData });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Global error in generate-plan:', err);
+    res.status(500).json({ error: 'Error interno al generar el plan: ' + err.message });
   }
 });
 
