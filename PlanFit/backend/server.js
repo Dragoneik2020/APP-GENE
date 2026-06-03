@@ -46,7 +46,7 @@ app.put('/api/v1/main', (req, res) => {
 app.get('/api/v1/exercises', (req, res) => {
   const exercises = db.prepare(`
     SELECT e.id, e.name, e.weight, e.times as count, e.muscle_group, e.image_url,
-           r.id as routine_id, r.seq as index, r.is_like
+           r.id as routine_id, r.seq as "index", r.is_like
     FROM routine r
     JOIN exercises e ON r.exercise_id = e.id
     WHERE r.user_id = ?
