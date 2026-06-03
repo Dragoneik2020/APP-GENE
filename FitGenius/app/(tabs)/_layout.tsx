@@ -56,7 +56,7 @@ export default function TabLayout() {
   );
 }
 
-function TabIcon({ icon, color }: { icon: string; color: string }) {
+function TabIcon({ icon, color }: { icon: string; color: any }) {
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontSize: 24 }}>{icon}</Text>

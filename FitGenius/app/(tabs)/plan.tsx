@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../src/services/api';
 
 export default function PlanScreen() {
@@ -23,15 +23,15 @@ export default function PlanScreen() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const router = useRouter();
+  const { planId } = useLocalSearchParams<{ planId?: string }>();
 
   useEffect(() => {
     loadPlans();
     
-    const planId = router.query.planId;
     if (planId) {
-      loadPlanDetails(parseInt(planId as string));
+      loadPlanDetails(parseInt(planId));
     }
-  }, []);
+  }, [planId]);
 
   const loadPlanDetails = async (id: number) => {
     try {

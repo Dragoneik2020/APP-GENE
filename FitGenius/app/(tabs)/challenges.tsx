@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import api from '../../src/services/api';
@@ -15,12 +16,15 @@ import api from '../../src/services/api';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
 });
 
 export default function ChallengesScreen() {
+  const router = useRouter();
   const [todayChallenges, setTodayChallenges] = useState([]);
   const [upcomingChallenges, setUpcomingChallenges] = useState([]);
   const [plans, setPlans] = useState([]);

@@ -156,6 +156,10 @@ class ApiService {
     return this.request(`/challenges/${id}/complete`, { method: 'PUT' });
   }
 
+  async deleteChallenge(id: number) {
+    return this.request(`/challenges/${id}`, { method: 'DELETE' });
+  }
+
   async getExercises() {
     return this.request('/exercises');
   }

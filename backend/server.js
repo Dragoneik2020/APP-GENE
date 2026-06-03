@@ -323,6 +323,11 @@ app.get('/api/challenges/upcoming', auth, (req, res) => {
   res.json(challenges);
 });
 
+app.delete('/api/challenges/:id', auth, (req, res) => {
+  db.prepare('DELETE FROM daily_challenges WHERE id = ? AND user_id = ?').run(req.params.id, req.userId);
+  res.json({ success: true });
+});
+
 app.put('/api/challenges/:id/complete', auth, (req, res) => {
   db.prepare('UPDATE daily_challenges SET completed = 1, completed_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?')
     .run(req.params.id, req.userId);
