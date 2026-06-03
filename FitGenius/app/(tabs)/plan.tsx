@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Modal,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../src/services/api';
@@ -22,6 +24,7 @@ export default function PlanScreen() {
   const [limitations, setLimitations] = useState('');
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const router = useRouter();
   const { planId } = useLocalSearchParams<{ planId?: string }>();
 
@@ -99,6 +102,70 @@ export default function PlanScreen() {
       ]
     );
   };
+
+  async function scheduleChallengeForToday(planId: number) {
+    try {
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      await api.scheduleChallenge({
+        workout_plan_id: planId,
+        challenge_date: now.toISOString().split('T')[0],
+        scheduled_time: timeStr,
+      });
+      Alert.alert('¡Programado!', 'Tu entrenamiento ha sido programado para hoy');
+      setShowScheduleModal(false);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  }
+
+  const getPlanTitle = (plan: any) => {
+    return plan.plan_name || plan.plan_data?.plan_name || plan.name || 'Plan de entrenamiento';
+  };
+
+  const getPlanDescription = (plan: any) => {
+    return plan.description || plan.plan_data?.description || '';
+  };
+
+  const getPlanWeeks = (plan: any) => {
+    return plan.weeks || plan.plan_data?.weeks || [];
+  };
+
+  const getPlanId = (plan: any) => {
+    return plan.id || (plan as any).planId;
+  };
+
+  const exerciseImages: Record<string, string> = {
+    'Press de Banca': '🏋️',
+    'Press Inclinado': '🏋️',
+    'Fondos': '⬇️',
+    'Aperturas': '✈️',
+    'Dominadas': '⬆️',
+    'Remo con Barra': '🚣',
+    'Remo con Mancuerna': '🚣',
+    'Jalón al Pecho': '⬇️',
+    'Sentadilla': '🦵',
+    'Peso Muerto': '🏋️',
+    'Lunges': '🚶',
+    'Prensa de Piernas': '🦵',
+    'Press Militar': '⬆️',
+    'Elevaciones Laterales': '↔️',
+    'Face Pull': '🏋️',
+    'Press Arnold': '🔄',
+    'Curl de Bíceps': '💪',
+    'Extensión de Tríceps': '💪',
+    'Martillo': '🔨',
+    'Fondos de Tríceps': '⬇️',
+    'Plancha': '📋',
+    'Russian Twist': '🔄',
+    'Crunch Abdominal': '⬆️',
+    'Mountain Climbers': '🧗',
+    'Burpees': '💥',
+  };
+
+  function getExerciseIcon(name: string) {
+    return exerciseImages[name] || '🏃';
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -185,35 +252,70 @@ export default function PlanScreen() {
 
       {selectedPlan && (
         <View style={styles.planDetailCard}>
-          <Text style={styles.planDetailTitle}>{selectedPlan.plan_name}</Text>
-          <Text style={styles.planDescription}>{selectedPlan.description}</Text>
+          <Text style={styles.planDetailTitle}>{getPlanTitle(selectedPlan)}</Text>
+          <Text style={styles.planDescription}>{getPlanDescription(selectedPlan)}</Text>
           
-          {selectedPlan.weeks && selectedPlan.weeks.length > 0 && (
+          {getPlanWeeks(selectedPlan).length > 0 && (
             <View style={styles.weeksContainer}>
-              {selectedPlan.weeks.map((week: any) => (
+              {getPlanWeeks(selectedPlan).map((week: any) => (
                 <View key={week.week_number} style={styles.weekCard}>
                   <Text style={styles.weekTitle}>Semana {week.week_number}</Text>
+                  
+                  {week.warm_up && week.warm_up.length > 0 && (
+                    <View style={styles.sectionCard}>
+                      <Text style={styles.subSectionTitle}>Calentamiento</Text>
+                      {week.warm_up.map((ex: any, idx: number) => (
+                        <View key={idx} style={styles.exerciseRow}>
+                          <Text style={styles.exerciseName}>🔥 {ex.name}</Text>
+                          <Text style={styles.exerciseDetail}>{ex.duration || ex.reps}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
                   {week.days.map((day: any, idx: number) => (
                     <View key={idx} style={styles.dayCard}>
                       <View style={styles.dayHeader}>
                         <Text style={styles.dayName}>{day.day_name}</Text>
                         <View style={[
                           styles.dayTypeBadge,
-                          { backgroundColor: day.day_type === 'cardio' ? '#E17055' : '#6C5CE7' }
+                          { backgroundColor: day.day_type === 'cardio' ? '#E17055' : day.day_type === 'flexibility' ? '#00B894' : '#6C5CE7' }
                         ]}>
-                          <Text style={styles.dayTypeText}>{day.day_type}</Text>
+                          <Text style={styles.dayTypeText}>
+                            {day.day_type === 'strength' ? 'Fuerza' : day.day_type === 'cardio' ? 'Cardio' : day.day_type === 'flexibility' ? 'Flexibilidad' : 'Descanso'}
+                          </Text>
                         </View>
                       </View>
                       {day.exercises && day.exercises.map((ex: any, exIdx: number) => (
-                        <View key={exIdx} style={styles.exerciseRow}>
-                          <Text style={styles.exerciseName}>{ex.name}</Text>
-                          <Text style={styles.exerciseDetail}>
-                            {ex.sets}x{ex.reps} • {ex.rest_seconds}s descanso
-                          </Text>
+                        <View key={exIdx} style={styles.exerciseCard}>
+                          <View style={styles.exerciseIconContainer}>
+                            <Text style={styles.exerciseIcon}>{getExerciseIcon(ex.name)}</Text>
+                          </View>
+                          <View style={styles.exerciseInfo}>
+                            <Text style={styles.exerciseName}>{ex.name}</Text>
+                            <Text style={styles.exerciseDetail}>
+                              {ex.sets} series x {ex.reps} reps • {ex.rest_seconds}s descanso
+                            </Text>
+                            {ex.notes && (
+                              <Text style={styles.exerciseNotes}>💡 {ex.notes}</Text>
+                            )}
+                          </View>
                         </View>
                       ))}
                     </View>
                   ))}
+
+                  {week.cool_down && week.cool_down.length > 0 && (
+                    <View style={styles.sectionCard}>
+                      <Text style={styles.subSectionTitle}>Enfriamiento</Text>
+                      {week.cool_down.map((ex: any, idx: number) => (
+                        <View key={idx} style={styles.exerciseRow}>
+                          <Text style={styles.exerciseName}>🧘 {ex.name}</Text>
+                          <Text style={styles.exerciseDetail}>{ex.duration || ex.reps}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -221,21 +323,52 @@ export default function PlanScreen() {
 
           <TouchableOpacity
             style={styles.scheduleButton}
-            onPress={() => {
-              Alert.alert(
-                'Programar desafío',
-                'Selecciona la fecha y hora para tu entrenamiento',
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  { text: 'Hoy', onPress: () => scheduleChallengeForToday(selectedPlan.id) },
-                  { text: 'Otro día', onPress: () => router.push('/(tabs)/challenges') },
-                ]
-              );
-            }}
+            onPress={() => setShowScheduleModal(true)}
           >
             <Text style={styles.scheduleButtonText}>📅 Programar Entrenamiento</Text>
           </TouchableOpacity>
         </View>
+      )}
+
+      {showScheduleModal && (
+        <Modal
+          transparent
+          animationType="fade"
+          visible={showScheduleModal}
+          onRequestClose={() => setShowScheduleModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Programar desafío</Text>
+              <Text style={styles.modalText}>¿Cuándo quieres realizar este entrenamiento?</Text>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  const id = getPlanId(selectedPlan);
+                  if (id) scheduleChallengeForToday(id);
+                  else Alert.alert('Error', 'ID del plan no disponible');
+                }}
+              >
+                <Text style={styles.modalButtonText}>📅 Hoy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#6C5CE7' }]}
+                onPress={() => {
+                  setShowScheduleModal(false);
+                  router.push('/(tabs)/challenges');
+                }}
+              >
+                <Text style={styles.modalButtonText}>📆 Otro día</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#2D2D2D' }]}
+                onPress={() => setShowScheduleModal(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: '#B2BEC3' }]}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
 
       <Text style={styles.sectionTitle}>Mis Planes</Text>
@@ -266,21 +399,6 @@ export default function PlanScreen() {
       )}
     </ScrollView>
   );
-
-  async function scheduleChallengeForToday(planId: number) {
-    try {
-      const now = new Date();
-      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      await api.scheduleChallenge({
-        workout_plan_id: planId,
-        challenge_date: now.toISOString().split('T')[0],
-        scheduled_time: timeStr,
-      });
-      Alert.alert('¡Programado!', 'Tu entrenamiento ha sido programado para hoy');
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    }
-  }
 }
 
 const styles = StyleSheet.create({
@@ -394,6 +512,18 @@ const styles = StyleSheet.create({
     color: '#FF6B35',
     marginBottom: 12,
   },
+  sectionCard: {
+    backgroundColor: '#252525',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  subSectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#00B894',
+    marginBottom: 8,
+  },
   dayCard: {
     marginBottom: 12,
   },
@@ -401,7 +531,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   dayName: {
     fontSize: 14,
@@ -418,20 +548,50 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
+  exerciseCard: {
+    flexDirection: 'row',
+    backgroundColor: '#333',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  exerciseIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  exerciseIcon: {
+    fontSize: 20,
+  },
+  exerciseInfo: {
+    flex: 1,
+  },
+  exerciseName: {
+    fontSize: 13,
+    color: '#FFF',
+    fontWeight: '500',
+  },
+  exerciseDetail: {
+    fontSize: 12,
+    color: '#B2BEC3',
+    marginTop: 2,
+  },
+  exerciseNotes: {
+    fontSize: 11,
+    color: '#FDCB6E',
+    marginTop: 2,
+  },
   exerciseRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#3D3D3D',
-  },
-  exerciseName: {
-    fontSize: 13,
-    color: '#FFF',
-  },
-  exerciseDetail: {
-    fontSize: 12,
-    color: '#B2BEC3',
   },
   scheduleButton: {
     backgroundColor: '#00B894',
@@ -497,5 +657,42 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 13,
     color: '#444',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  modalText: {
+    fontSize: 14,
+    color: '#B2BEC3',
+    marginBottom: 20,
+  },
+  modalButton: {
+    backgroundColor: '#00B894',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modalButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

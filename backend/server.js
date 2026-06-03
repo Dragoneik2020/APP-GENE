@@ -183,43 +183,193 @@ Responde SOLO con un JSON válido con esta estructura:
 });
 
 function generateFallbackPlan(user, goals, daysPerWeek, duration, equipment) {
-  const muscleGroups = ['Pecho', 'Espalda', 'Piernas', 'Hombros', 'Brazos', 'Core'];
-  const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-  
+  const weekTemplates = [
+    { focus: 'Push (Pecho y Hombros)', muscles: ['Pecho', 'Hombros', 'Tríceps'] },
+    { focus: 'Pull (Espalda y Bíceps)', muscles: ['Espalda', 'Brazos', 'Core'] },
+    { focus: 'Piernas', muscles: ['Piernas', 'Core', 'Piernas'] },
+    { focus: 'Push (Variante)', muscles: ['Hombros', 'Pecho', 'Brazos'] },
+    { focus: 'Full Body', muscles: ['Piernas', 'Espalda', 'Pecho', 'Core'] },
+    { focus: 'Cardio y Core', muscles: ['Core', 'Cardio', 'Core'] },
+    { focus: 'Recuperación Activa', muscles: ['Flexibility', 'Core', 'Flexibility'] }
+  ];
+
+  const warmUpExercises = [
+    { name: 'Rotación de brazos', duration: '30s', notes: 'Ambos sentidos' },
+    { name: 'Estiramiento de hombros', duration: '30s', notes: 'Mantener postura' },
+    { name: 'Torsión de tronco', duration: '30s', notes: 'Controlado' },
+    { name: 'Círculos de cadera', duration: '30s', notes: 'Ambos lados' },
+    { name: 'Saltos suaves', duration: '45s', notes: 'Sin impacto fuerte' },
+  ];
+
+  const coolDownExercises = [
+    { name: 'Estiramiento de pectoral', duration: '30s', notes: 'Respirar profundo' },
+    { name: 'Estiramiento de espalda', duration: '30s', notes: 'Relajar hombros' },
+    { name: 'Estiramiento de isquiotibiales', duration: '30s', notes: 'Sin rebote' },
+    { name: 'Estiramiento de cuádriceps', duration: '30s', notes: 'Mantener equilibrio' },
+    { name: 'Respiración profunda', duration: '60s', notes: 'Inhalar 4s, exhalar 6s' },
+  ];
+
+  const exerciseNotes = {
+    'Press de Banca': 'Mantén codos a 45°, no bloquees codos arriba',
+    'Press Inclinado': 'Ángulo de 30°, enfoque en pectoral superior',
+    'Fondos': 'Baja hasta que codos estén a 90°',
+    'Aperturas': 'Leve flexión de codos, siente el estiramiento',
+    'Dominadas': 'Activa escápulas antes de subir',
+    'Remo con Barra': 'Mantén espalda recta, lleva barra al ombligo',
+    'Remo con Mancuerna': 'Apoya rodilla en banca, espalda paralela al suelo',
+    'Jalón al Pecho': 'Lleva barra a la parte superior del pecho',
+    'Sentadilla': 'Cadera más abajo que rodillas, pecho arriba',
+    'Peso Muerto': 'Espalda neutra, empuja caderas al frente',
+    'Lunges': 'Rodilla trasera casi toca el suelo',
+    'Prensa de Piernas': 'No bloquees rodillas al extender',
+    'Press Militar': 'Barra frente a la cara, sube sin arquear',
+    'Elevaciones Laterales': 'Ligera flexión de codos, no uses impulso',
+    'Curl de Bíceps': 'Codos pegados al cuerpo, sube controlado',
+    'Extensión de Tríceps': 'Codos apuntando al techo',
+    'Plancha': 'Cuerpo en línea recta, aprieta glúteos',
+    'Russian Twist': 'Gira el torso, no solo los brazos',
+    'Crunch Abdominal': 'Despega solo hombros del suelo',
+    'Mountain Climbers': 'Cadera baja, rodillas al pecho',
+    'Burpees': 'Salta al final con brazos extendidos',
+    'Martillo': 'Palmas facing each other, curl como martillo',
+    'Face Pull': 'Tira hacia la cara, codos arriba',
+    'Fondos de Tríceps': 'Cuerpo cerca de la banca'
+  };
+
+  function getSets(user, isBeginnerBoost = false) {
+    const base = user.fitness_level === 'beginner' ? 3 : 4;
+    return isBeginnerBoost && user.fitness_level === 'beginner' ? 2 : base;
+  }
+
+  function getReps(user) {
+    return user.fitness_level === 'beginner' ? '10-12' : '8-12';
+  }
+
+  function getRest(user) {
+    return user.fitness_level === 'beginner' ? 75 : 60;
+  }
+
+  function pickExercise(muscle, usedIndices) {
+    const pool = exerciseMap[muscle] || exerciseMap['Pecho'];
+    const available = [];
+    for (let i = 0; i < pool.length; i++) {
+      if (!usedIndices.has(i)) available.push(i);
+    }
+    if (available.length === 0) {
+      usedIndices.clear();
+      available.push(...pool.keys());
+    }
+    const pick = available[Math.floor(Math.random() * available.length)];
+    usedIndices.add(pick);
+    return pool[pick];
+  }
+
   const plan = {
     plan_name: `Plan ${goals || 'Fitness'} - ${daysPerWeek} días`,
-    description: `Plan personalizado para ${user.name} con ${daysPerWeek} sesiones semanales de ${duration} minutos`,
+    description: `Plan personalizado para ${user.name} | ${daysPerWeek} sesiones/semana • ${duration} min/sesión • ${user.fitness_level === 'beginner' ? 'Principiante' : user.fitness_level === 'intermediate' ? 'Intermedio' : 'Avanzado'} | ${equipment || 'Sin equipo'}`,
     weeks: []
   };
 
   for (let week = 1; week <= 4; week++) {
     const weekPlan = { week_number: week, days: [] };
+    const warmUp = [warmUpExercises[(week * 0) % warmUpExercises.length], warmUpExercises[(week * 1 + 2) % warmUpExercises.length]];
+    const coolDown = [coolDownExercises[(week * 1) % coolDownExercises.length], coolDownExercises[(week * 2 + 3) % coolDownExercises.length]];
     
+    if (daysPerWeek <= 3) {
+      weekPlan.warm_up = warmUp;
+      weekPlan.cool_down = coolDown;
+    }
+
     for (let d = 0; d < Math.min(daysPerWeek, 7); d++) {
+      const template = weekTemplates[d % weekTemplates.length];
       const exercises = [];
-      const primaryMuscle = muscleGroups[d % muscleGroups.length];
-      
-      exercises.push({
-        name: getExerciseForMuscle(primaryMuscle),
-        sets: user.fitness_level === 'beginner' ? 3 : 4,
-        reps: user.fitness_level === 'beginner' ? '10-12' : '8-12',
-        rest_seconds: 60,
-        muscle_group: primaryMuscle,
-        notes: ''
-      });
-      
-      exercises.push({
-        name: getExerciseForMuscle(primaryMuscle, true),
-        sets: user.fitness_level === 'beginner' ? 3 : 4,
-        reps: user.fitness_level === 'beginner' ? '12-15' : '10-12',
-        rest_seconds: 60,
-        muscle_group: primaryMuscle,
-        notes: ''
-      });
+      const usedIndices = new Set();
+
+      if (template.focus === 'Recuperación Activa') {
+        weekPlan.days.push({
+          day_name: days[d],
+          day_type: 'flexibility',
+          exercises: [
+            { name: 'Caminata ligera', sets: 1, reps: '15 min', rest_seconds: 0, muscle_group: 'Cardio', notes: 'Ritmo suave' },
+            { name: 'Estiramiento general', sets: 2, reps: '30s c/u', rest_seconds: 0, muscle_group: 'Flexibilidad', notes: 'Todo el cuerpo' },
+            { name: 'Yoga básico', sets: 1, reps: '10 min', rest_seconds: 0, muscle_group: 'Flexibilidad', notes: 'Posturas suaves' },
+          ]
+        });
+        continue;
+      }
+
+      if (template.focus === 'Cardio y Core') {
+        const coreEx = ['Plancha', 'Russian Twist', 'Crunch Abdominal', 'Mountain Climbers'];
+        const cardioEx = ['Burpees', 'Mountain Climbers'];
+        const idx = week * 2 + d;
+        exercises.push({
+          name: coreEx[idx % coreEx.length],
+          sets: getSets(user),
+          reps: user.fitness_level === 'beginner' ? '20-30s' : '30-45s',
+          rest_seconds: 30,
+          muscle_group: 'Core',
+          notes: exerciseNotes[coreEx[idx % coreEx.length]] || ''
+        });
+        exercises.push({
+          name: cardioEx[idx % cardioEx.length],
+          sets: getSets(user, true),
+          reps: user.fitness_level === 'beginner' ? '8-10' : '12-15',
+          rest_seconds: 30,
+          muscle_group: 'Cardio',
+          notes: exerciseNotes[cardioEx[idx % cardioEx.length]] || ''
+        });
+        exercises.push({
+          name: coreEx[(idx + 2) % coreEx.length],
+          sets: getSets(user),
+          reps: user.fitness_level === 'beginner' ? '10-12' : '15-20',
+          rest_seconds: 45,
+          muscle_group: 'Core',
+          notes: exerciseNotes[coreEx[(idx + 2) % coreEx.length]] || ''
+        });
+      } else {
+        const primaryMuscle = template.muscles[0];
+        const secondaryMuscle = template.muscles[1 % template.muscles.length];
+        const thirdMuscle = template.muscles[2 % template.muscles.length];
+
+        const ex1 = pickExercise(primaryMuscle, usedIndices);
+        const ex2 = pickExercise(template.muscles.length > 2 ? secondaryMuscle : primaryMuscle, usedIndices);
+        const ex3 = pickExercise(thirdMuscle, usedIndices);
+
+        exercises.push({
+          name: ex1,
+          sets: getSets(user),
+          reps: getReps(user),
+          rest_seconds: getRest(user),
+          muscle_group: primaryMuscle,
+          notes: exerciseNotes[ex1] || ''
+        });
+        exercises.push({
+          name: ex2,
+          sets: getSets(user),
+          reps: getReps(user),
+          rest_seconds: getRest(user),
+          muscle_group: secondaryMuscle,
+          notes: exerciseNotes[ex2] || ''
+        });
+        exercises.push({
+          name: ex3,
+          sets: getSets(user, true),
+          reps: user.fitness_level === 'beginner' ? '12-15' : '10-12',
+          rest_seconds: getRest(user),
+          muscle_group: thirdMuscle,
+          notes: exerciseNotes[ex3] || ''
+        });
+      }
+
+      if (daysPerWeek > 3 && weekPlan.warm_up === undefined) {
+        weekPlan.warm_up = warmUp;
+        weekPlan.cool_down = coolDown;
+      }
 
       weekPlan.days.push({
         day_name: days[d],
-        day_type: d % 3 === 2 ? 'cardio' : 'strength',
+        day_type: template.focus === 'Cardio y Core' ? 'cardio' : template.focus === 'Recuperación Activa' ? 'flexibility' : 'strength',
+        focus: template.focus,
         exercises
       });
     }
@@ -230,18 +380,17 @@ function generateFallbackPlan(user, goals, daysPerWeek, duration, equipment) {
   return plan;
 }
 
-function getExerciseForMuscle(muscle, secondary = false) {
-  const exercises = {
-    'Pecho': ['Press de Banca', 'Press Inclinado', 'Fondos', 'Aperturas'],
-    'Espalda': ['Dominadas', 'Remo con Barra', 'Remo con Mancuerna', 'Jalón al Pecho'],
-    'Piernas': ['Sentadilla', 'Peso Muerto', 'Lunges', 'Prensa de Piernas'],
-    'Hombros': ['Press Militar', 'Elevaciones Laterales', 'Face Pull', 'Press Arnold'],
-    'Brazos': ['Curl de Bíceps', 'Extensión de Tríceps', 'Martillo', 'Fondos de Tríceps'],
-    'Core': ['Plancha', 'Russian Twist', 'Crunch Abdominal', 'Mountain Climbers']
-  };
-  const list = exercises[muscle] || exercises['Pecho'];
-  return list[secondary ? 1 : 0];
-}
+const exerciseMap = {
+  'Pecho': ['Press de Banca', 'Press Inclinado', 'Fondos', 'Aperturas'],
+  'Espalda': ['Dominadas', 'Remo con Barra', 'Remo con Mancuerna', 'Jalón al Pecho'],
+  'Piernas': ['Sentadilla', 'Peso Muerto', 'Lunges', 'Prensa de Piernas'],
+  'Hombros': ['Press Militar', 'Elevaciones Laterales', 'Face Pull', 'Press Arnold'],
+  'Brazos': ['Curl de Bíceps', 'Extensión de Tríceps', 'Martillo', 'Fondos de Tríceps'],
+  'Tríceps': ['Extensión de Tríceps', 'Fondos de Tríceps', 'Press cerrado'],
+  'Core': ['Plancha', 'Russian Twist', 'Crunch Abdominal', 'Mountain Climbers'],
+  'Cardio': ['Burpees', 'Mountain Climbers', 'Saltos de tijera', 'High knees'],
+  'Flexibility': ['Estiramiento general', 'Yoga básico', 'Foam rolling', 'Movilidad articular']
+};
 
 app.post('/api/workouts/custom', auth, (req, res) => {
   try {

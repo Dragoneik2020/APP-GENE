@@ -91,31 +91,32 @@ db.exec(`
     equipment TEXT,
     difficulty TEXT DEFAULT 'medium',
     description TEXT,
-    video_url TEXT
+    video_url TEXT,
+    image_url TEXT
   );
 `);
 
 const insertExercise = db.prepare(`
-  INSERT OR IGNORE INTO exercise_library (name, muscle_group, equipment, difficulty, description)
-  VALUES (?, ?, ?, ?, ?)
+  INSERT OR IGNORE INTO exercise_library (name, muscle_group, equipment, difficulty, description, image_url)
+  VALUES (?, ?, ?, ?, ?, ?)
 `);
 
 const exercises = [
-  ['Press de Banca', 'Pecho', 'Barra', 'medium', 'Acostado en banca, bajar la barra al pecho y empujar hacia arriba'],
-  ['Sentadilla', 'Piernas', 'Barra', 'medium', 'Bajar flexionando rodillas hasta parallel y subir'],
-  ['Peso Muerto', 'Espalda', 'Barra', 'hard', 'Levantar barra desde el suelo manteniendo la espalda recta'],
-  ['Press Militar', 'Hombros', 'Barra', 'medium', 'Desde la posición erguida, elevar la barra sobre la cabeza'],
-  ['Curl de Bíceps', 'Bíceps', 'Mancuernas', 'easy', 'Con mancuernas a los lados, flexionar codos'],
-  ['Fondos', 'Pecho', 'Peso corporal', 'medium', 'Bajar el cuerpo entre paralelas y subir'],
-  ['Dominadas', 'Espalda', 'Barra', 'hard', 'Colgarse de barra y subir el mentón sobre ella'],
-  ['Remo con Barra', 'Espalda', 'Barra', 'medium', 'Inclinado hacia adelante, llevar barra al abdomen'],
-  ['Extensión de Tríceps', 'Tríceps', 'Polea', 'easy', 'Empujar la polea hacia abajo extendiendo los codos'],
-  ['Lunges', 'Piernas', 'Mancuernas', 'medium', 'Dar pasos alternos flexionando ambas rodillas a 90°'],
-  ['Plancha', 'Core', 'Peso corporal', 'easy', 'Mantener posición de plancha el mayor tiempo posible'],
-  ['Russian Twist', 'Core', 'Peso corporal', 'medium', 'Sentado, girar el torso de lado a lado'],
-  ['Burpees', 'Full body', 'Peso corporal', 'hard', 'Combina sentadilla, plancha y salto'],
-  ['Mountain Climbers', 'Cardio', 'Peso corporal', 'medium', 'En posición de plancha, alternar rodillas hacia el pecho'],
-  ['Press Inclinado', 'Pecho', 'Barra', 'medium', 'Press de banca en banco inclinado a 30°'],
+  ['Press de Banca', 'Pecho', 'Barra', 'medium', 'Acostado en banca, bajar la barra al pecho y empujar hacia arriba', 'https://placehold.co/400x300/FF6B35/FFFFFF?text=Press+de+Banca'],
+  ['Sentadilla', 'Piernas', 'Barra', 'medium', 'Bajar flexionando rodillas hasta paralelo y subir', 'https://placehold.co/400x300/6C5CE7/FFFFFF?text=Sentadilla'],
+  ['Peso Muerto', 'Espalda', 'Barra', 'hard', 'Levantar barra desde el suelo manteniendo la espalda recta', 'https://placehold.co/400x300/E17055/FFFFFF?text=Peso+Muerto'],
+  ['Press Militar', 'Hombros', 'Barra', 'medium', 'Desde la posición erguida, elevar la barra sobre la cabeza', 'https://placehold.co/400x300/00B894/FFFFFF?text=Press+Militar'],
+  ['Curl de Bíceps', 'Bíceps', 'Mancuernas', 'easy', 'Con mancuernas a los lados, flexionar codos', 'https://placehold.co/400x300/FDCB6E/333333?text=Curl+Bíceps'],
+  ['Fondos', 'Pecho', 'Peso corporal', 'medium', 'Bajar el cuerpo entre paralelas y subir', 'https://placehold.co/400x300/FF6B35/FFFFFF?text=Fondos'],
+  ['Dominadas', 'Espalda', 'Barra', 'hard', 'Colgarse de barra y subir el mentón sobre ella', 'https://placehold.co/400x300/6C5CE7/FFFFFF?text=Dominadas'],
+  ['Remo con Barra', 'Espalda', 'Barra', 'medium', 'Inclinado hacia adelante, llevar barra al abdomen', 'https://placehold.co/400x300/E17055/FFFFFF?text=Remo+Barra'],
+  ['Extensión de Tríceps', 'Tríceps', 'Polea', 'easy', 'Empujar la polea hacia abajo extendiendo los codos', 'https://placehold.co/400x300/00B894/FFFFFF?text=Ext+Tríceps'],
+  ['Lunges', 'Piernas', 'Mancuernas', 'medium', 'Dar pasos alternos flexionando ambas rodillas a 90°', 'https://placehold.co/400x300/FDCB6E/333333?text=Lunges'],
+  ['Plancha', 'Core', 'Peso corporal', 'easy', 'Mantener posición de plancha el mayor tiempo posible', 'https://placehold.co/400x300/FF6B35/FFFFFF?text=Plancha'],
+  ['Russian Twist', 'Core', 'Peso corporal', 'medium', 'Sentado, girar el torso de lado a lado', 'https://placehold.co/400x300/6C5CE7/FFFFFF?text=Russian+Twist'],
+  ['Burpees', 'Full body', 'Peso corporal', 'hard', 'Combina sentadilla, plancha y salto', 'https://placehold.co/400x300/E17055/FFFFFF?text=Burpees'],
+  ['Mountain Climbers', 'Cardio', 'Peso corporal', 'medium', 'En posición de plancha, alternar rodillas hacia el pecho', 'https://placehold.co/400x300/00B894/FFFFFF?text=Mountain+Climbers'],
+  ['Press Inclinado', 'Pecho', 'Barra', 'medium', 'Press de banca en banco inclinado a 30°', 'https://placehold.co/400x300/FDCB6E/333333?text=Press+Inclinado'],
 ];
 
 const insertMany = db.transaction((exercises) => {
