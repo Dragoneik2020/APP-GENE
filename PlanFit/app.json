@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "PlanFit",
+    "slug": "planfit",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "planfit",
+    "splash": {
+      "backgroundColor": "#1A1A1A"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router"]
+  }
+}
