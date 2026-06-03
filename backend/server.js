@@ -477,10 +477,101 @@ app.delete('/api/challenges/:id', auth, (req, res) => {
   res.json({ success: true });
 });
 
+// --- Gamification: XP/Level helpers ---
+const LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2100, 2800, 3600, 4500, 5500];
+function calculateLevel(totalXp) {
+  let level = 1;
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (totalXp >= LEVEL_THRESHOLDS[i]) { level = i + 1; break; }
+  }
+  return level;
+}
+function xpForCurrentLevel(level) {
+  return LEVEL_THRESHOLDS[level - 1] || 0;
+}
+function xpForNextLevel(level) {
+  return LEVEL_THRESHOLDS[level] || (LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1] + (level - LEVEL_THRESHOLDS.length + 1) * 1000);
+}
+
 app.put('/api/challenges/:id/complete', auth, (req, res) => {
+  const challenge = db.prepare('SELECT * FROM daily_challenges WHERE id = ? AND user_id = ?').get(req.params.id, req.userId);
+  if (!challenge) return res.status(404).json({ error: 'Desafío no encontrado' });
+  if (challenge.completed) return res.json({ success: true, xp_earned: 0, already_completed: true });
+
+  // Mark completed
   db.prepare('UPDATE daily_challenges SET completed = 1, completed_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?')
     .run(req.params.id, req.userId);
-  res.json({ success: true });
+
+  // XP calculation
+  let xpEarned = 25; // base
+  // Bonus for completing within scheduled hour
+  const now = new Date();
+  const scheduledHour = parseInt(challenge.scheduled_time.split(':')[0]);
+  if (now.getHours() === scheduledHour) xpEarned += 10;
+  // Bonus for completing within same day
+  const today = now.toISOString().split('T')[0];
+  if (challenge.challenge_date === today) xpEarned += 5;
+  // Check streak bonus (3+ consecutive days)
+  const streakDays = db.prepare(`
+    SELECT COUNT(DISTINCT challenge_date) as count FROM daily_challenges 
+    WHERE user_id = ? AND completed = 1 AND challenge_date >= date('now', '-7 days')
+  `).get(req.userId).count;
+  if (streakDays >= 3) xpEarned += Math.min(streakDays, 14) * 2; // up to 28 bonus
+
+  // Update user XP and level
+  const user = db.prepare('SELECT xp, level FROM users WHERE id = ?').get(req.userId);
+  const newXp = (user.xp || 0) + xpEarned;
+  const newLevel = calculateLevel(newXp);
+  const leveledUp = newLevel > (user.level || 1);
+  db.prepare('UPDATE users SET xp = ?, level = ? WHERE id = ?').run(newXp, newLevel, req.userId);
+
+  res.json({ success: true, xp_earned: xpEarned, total_xp: newXp, level: newLevel, leveled_up: leveledUp });
+});
+
+// --- Workout Logs ---
+app.post('/api/workout-logs', auth, (req, res) => {
+  const { challenge_id, exercises } = req.body;
+  if (!exercises || !Array.isArray(exercises)) {
+    return res.status(400).json({ error: 'exercises array is required' });
+  }
+  const insert = db.prepare('INSERT INTO workout_logs (user_id, challenge_id, exercise_name, sets, reps, weight, notes) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  const insertMany = db.transaction((logs) => {
+    for (const ex of logs) {
+      insert.run(req.userId, challenge_id || null, ex.name, ex.sets || null, ex.reps || null, ex.weight || null, ex.notes || null);
+    }
+  });
+  insertMany(exercises);
+  res.json({ success: true, logged: exercises.length });
+});
+
+app.get('/api/workout-logs', auth, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+  const offset = parseInt(req.query.offset) || 0;
+  const logs = db.prepare(`
+    SELECT wl.*, dc.challenge_date, dc.scheduled_time 
+    FROM workout_logs wl
+    LEFT JOIN daily_challenges dc ON wl.challenge_id = dc.id
+    WHERE wl.user_id = ?
+    ORDER BY wl.completed_at DESC
+    LIMIT ? OFFSET ?
+  `).all(req.userId, limit, offset);
+  res.json(logs);
+});
+
+// --- Progress History ---
+app.get('/api/progress', auth, (req, res) => {
+  const days = db.prepare(`
+    SELECT challenge_date as date, COUNT(*) as count, 
+           SUM(completed) as completed_count
+    FROM daily_challenges 
+    WHERE user_id = ? AND challenge_date >= date('now', '-30 days')
+    GROUP BY challenge_date
+    ORDER BY challenge_date DESC
+  `).all(req.userId);
+
+  const user = db.prepare('SELECT xp, level FROM users WHERE id = ?').get(req.userId);
+  
+  res.json({ days, xp: user.xp || 0, level: user.level || 1 });
 });
 
 app.get('/api/exercises', (req, res) => {
@@ -496,7 +587,43 @@ app.get('/api/stats', auth, (req, res) => {
     FROM daily_challenges 
     WHERE user_id = ? AND completed = 1 AND challenge_date >= date('now', '-7 days')
   `).get(req.userId).count;
-  res.json({ totalWorkouts, totalPlans, weeklyStreak: streak });
+  
+  // Longest streak in last 60 days
+  const rawStreaks = db.prepare(`
+    SELECT challenge_date FROM daily_challenges 
+    WHERE user_id = ? AND completed = 1 AND challenge_date >= date('now', '-60 days')
+    ORDER BY challenge_date ASC
+  `).all(req.userId);
+  
+  let longestStreak = 0;
+  let currentRun = 0;
+  let prevDate = null;
+  for (const row of rawStreaks) {
+    const d = new Date(row.challenge_date + 'T00:00:00');
+    if (prevDate) {
+      const diff = Math.round((d - prevDate) / (1000 * 60 * 60 * 24));
+      if (diff === 1) {
+        currentRun++;
+      } else {
+        longestStreak = Math.max(longestStreak, currentRun);
+        currentRun = 1;
+      }
+    } else {
+      currentRun = 1;
+    }
+    prevDate = d;
+  }
+  longestStreak = Math.max(longestStreak, currentRun);
+
+  const user = db.prepare('SELECT xp, level FROM users WHERE id = ?').get(req.userId);
+  const xp = user.xp || 0;
+  const level = user.level || 1;
+  const currentXp = xp;
+  const levelStartXp = xpForCurrentLevel(level);
+  const levelEndXp = xpForNextLevel(level);
+  const xpProgress = levelEndXp > levelStartXp ? (currentXp - levelStartXp) / (levelEndXp - levelStartXp) : 1;
+
+  res.json({ totalWorkouts, totalPlans, weeklyStreak: streak, longestStreak, xp, level, xpProgress, levelStartXp, levelEndXp });
 });
 
 const PORT = process.env.PORT || 3001;

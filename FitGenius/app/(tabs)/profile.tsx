@@ -14,6 +14,7 @@ import api from '../../src/services/api';
 
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -30,8 +31,12 @@ export default function ProfileScreen() {
 
   const loadProfile = async () => {
     try {
-      const data = await api.getProfile();
+      const [data, statsData] = await Promise.all([
+        api.getProfile(),
+        api.getStats(),
+      ]);
       setProfile(data);
+      setStats(statsData);
       setName(data.name || '');
       setAge(data.age?.toString() || '');
       setWeight(data.weight?.toString() || '');
@@ -107,6 +112,38 @@ export default function ProfileScreen() {
           <Text style={styles.profileName}>{profile?.name || 'Usuario'}</Text>
           <Text style={styles.profileEmail}>{profile?.email}</Text>
         </View>
+
+        {stats && !editing && (
+          <View style={styles.statsSection}>
+            <View style={styles.statsRow}>
+              <View style={[styles.miniStat, { backgroundColor: '#FF6B35' }]}>
+                <Text style={styles.statEmoji}>🏆</Text>
+                <Text style={styles.statValue}>Nv.{stats.level}</Text>
+                <Text style={styles.statLabel}>Nivel</Text>
+              </View>
+              <View style={[styles.miniStat, { backgroundColor: '#6C5CE7' }]}>
+                <Text style={styles.statEmoji}>⭐</Text>
+                <Text style={styles.statValue}>{stats.xp}</Text>
+                <Text style={styles.statLabel}>XP total</Text>
+              </View>
+              <View style={[styles.miniStat, { backgroundColor: '#00B894' }]}>
+                <Text style={styles.statEmoji}>🔥</Text>
+                <Text style={styles.statValue}>{stats.longestStreak || stats.weeklyStreak}</Text>
+                <Text style={styles.statLabel}>Mejor racha</Text>
+              </View>
+            </View>
+            {stats.levelEndXp > stats.levelStartXp && (
+              <View style={styles.xpMiniBar}>
+                <View style={styles.xpMiniBarBg}>
+                  <View style={[styles.xpMiniBarFill, { width: `${Math.min(stats.xpProgress * 100, 100)}%` }]} />
+                </View>
+                <Text style={styles.xpMiniText}>
+                  Nivel {stats.level}: {stats.xp - stats.levelStartXp}/{stats.levelEndXp - stats.levelStartXp} XP
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {editing ? (
           <View style={styles.editForm}>
@@ -359,6 +396,55 @@ const styles = StyleSheet.create({
   levelTextActive: {
     color: '#FFF',
     fontWeight: '600',
+  },
+  statsSection: {
+    marginBottom: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  miniStat: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  statEmoji: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#FFF',
+    opacity: 0.85,
+    marginTop: 2,
+  },
+  xpMiniBar: {
+    marginTop: 4,
+  },
+  xpMiniBarBg: {
+    height: 6,
+    backgroundColor: '#2D2D2D',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  xpMiniBarFill: {
+    height: '100%',
+    backgroundColor: '#FF6B35',
+    borderRadius: 3,
+  },
+  xpMiniText: {
+    fontSize: 11,
+    color: '#B2BEC3',
+    textAlign: 'center',
   },
   saveButton: {
     backgroundColor: '#00B894',

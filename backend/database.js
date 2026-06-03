@@ -125,6 +125,13 @@ const insertMany = db.transaction((exercises) => {
   }
 });
 
+// Add gamification columns to users table if they don't exist
+const userColumns = db.prepare("PRAGMA table_info('users')").all();
+if (!userColumns.some(c => c.name === 'xp')) {
+  db.exec('ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0');
+  db.exec('ALTER TABLE users ADD COLUMN level INTEGER DEFAULT 1');
+}
+
 insertMany(exercises);
 
 module.exports = db;

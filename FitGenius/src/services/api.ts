@@ -168,6 +168,24 @@ class ApiService {
     return this.request('/stats');
   }
 
+  async getProgress() {
+    return this.request('/progress');
+  }
+
+  async createWorkoutLog(data: {
+    challenge_id?: number;
+    exercises: { name: string; sets?: number; reps?: number; weight?: number; notes?: string }[];
+  }) {
+    return this.request('/workout-logs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWorkoutLogs(limit = 50, offset = 0) {
+    return this.request(`/workout-logs?limit=${limit}&offset=${offset}`);
+  }
+
   async logout() {
     await this.clearToken();
   }
